@@ -1,0 +1,19 @@
+{
+  "_help": {
+    "verbose": "ALL = show all events; ERROR = only errors; WARNING = errors + warnings",
+    "search_string": "pattern(s) to search in logs. Can be: empty '', single string 'pattern', or array ['pattern1', 'pattern2']",
+    "report_dir": "directory where timestamped reports will be saved",
+    "log_types": "['ALL'] = all logs, or select specific types: ['CL', 'EX', 'TED6']",
+    "refresh_logs": "true = download fresh logs from EFT server before analysis; false = use existing local logs",
+    "log_retention_days": "number of days to retain/download logs (default: 2)"
+  },
+  "base_path": "C:\\LogOps",
+  "extensions": [".log", ".txt" ],
+  "log_types": ["CL"],
+  "report_dir": "C:\\BrainStein\\LogHound\\reports",
+  "verbose": "ERROR",
+  "search_string": ["fiserv"],
+  "ip_suspicious_threshold": 50,
+  "refresh_logs": false,
+  "log_retention_days": 1
+}
