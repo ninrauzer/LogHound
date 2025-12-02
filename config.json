@@ -9,11 +9,11 @@
   },
   "base_path": "C:\\LogOps",
   "extensions": [".log", ".txt" ],
-  "log_types": ["CL"],
+  "log_types": ["ALL"],
   "report_dir": "C:\\BrainStein\\LogHound\\reports",
-  "verbose": "ERROR",
+  "verbose": "ALL",
   "search_string": ["fiserv"],
   "ip_suspicious_threshold": 50,
-  "refresh_logs": false,
+  "refresh_logs": true,
   "log_retention_days": 1
 }

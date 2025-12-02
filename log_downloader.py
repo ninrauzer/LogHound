@@ -150,9 +150,15 @@ class LogDownloader:
             
             # Count eligible files for progress
             eligible_files = []
+            today_utc = datetime.utcnow().date()
             for f in files:
                 if self.matches_filters(f.filename):
                     mtime = datetime.fromtimestamp(f.st_mtime)
+                    # Always allow today's log, regardless of is_recent
+                    if mtime.date() == today_utc:
+                        if mtime >= cutoff:
+                            eligible_files.append(f)
+                        continue
                     if mtime >= cutoff and not self.is_recent(mtime):
                         eligible_files.append(f)
             

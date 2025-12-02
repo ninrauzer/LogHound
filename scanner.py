@@ -15,7 +15,7 @@ from eft_codes import EFT_CODES, ALL_CODES
 class LogScanner:
     """Log file scanner with event analysis."""
     
-    def __init__(self, config):
+    def __init__(self, config, start_local=None, end_local=None, tz_offset=None):
         """
         Initialize the scanner with the provided configuration.
         
@@ -40,6 +40,9 @@ class LogScanner:
             self.search_patterns = []
         
         self.parser = LogParser()
+        self.start_local = start_local
+        self.end_local = end_local
+        self.tz_offset = tz_offset
         
         # Accumulators
         self.error_counts = Counter()
@@ -102,22 +105,17 @@ class LogScanner:
             for f in files:
                 if not f.lower().endswith(self.extensions):
                     continue
-                
                 # Filter by log type
                 if not self._matches_log_type(f):
                     continue
-                
                 full_path = os.path.join(root, f)
                 archivos_procesados += 1
-                
                 try:
-                    # Try UTF-16 LE first (Windows CL logs), fallback to UTF-8
                     encodings = ['utf-16-le', 'utf-8', 'latin-1']
                     fh = None
                     for enc in encodings:
                         try:
                             fh = open(full_path, "r", encoding=enc)
-                            # Test read first line to validate encoding
                             fh.readline()
                             fh.seek(0)
                             break
@@ -125,15 +123,27 @@ class LogScanner:
                             if fh:
                                 fh.close()
                             continue
-                    
                     if not fh:
                         fh = open(full_path, "r", errors="ignore")
-                    
                     with fh:
                         for idx, line in enumerate(fh, start=1):
                             lineas_procesadas += 1
                             linea = line.strip()
-                            
+                            # --- TIME RANGE FILTER ---
+                            # Extract date from line (UTC), convert to local, filter
+                            fecha_str = self.parser.format_date(linea)
+                            from datetime import datetime
+                            try:
+                                if fecha_str.startswith('????'):
+                                    continue
+                                dt_utc = datetime.strptime(fecha_str, "%Y-%m-%d %H:%M:%S")
+                                dt_local = dt_utc + (self.tz_offset or datetime.timedelta())
+                                if self.start_local and self.end_local:
+                                    if not (self.start_local <= dt_local <= self.end_local):
+                                        continue
+                            except Exception:
+                                continue
+                            # --- END TIME RANGE FILTER ---
                             # If search patterns are configured, filter lines
                             matched_pattern = None
                             if self.search_patterns:
@@ -141,17 +151,13 @@ class LogScanner:
                                     if self.parser.search_string(linea, pattern):
                                         matched_pattern = pattern
                                         break
-                                
                                 if not matched_pattern:
                                     continue  # Skip lines that don't match any pattern
-                            
                             # Detect EFT/HTTP/Winsock code
                             codigo = self.parser.extract_code(linea)
-                            
                             # Store search result with code
                             if matched_pattern:
                                 self.search_results.append((full_path, idx, linea, matched_pattern, codigo))
-                            
                             # Display search results with color coding
                             if self.search_patterns:
                                 if codigo in ALL_CODES:
@@ -161,25 +167,20 @@ class LogScanner:
                                         codigo_color = f"{Fore.YELLOW}{codigo}{Style.RESET_ALL}"
                                     else:
                                         codigo_color = f"{Fore.GREEN}{codigo}{Style.RESET_ALL}"
-                                    
                                     linea_display = linea[:80].replace(str(codigo), codigo_color)
                                     print(f"{Fore.MAGENTA}[SEARCH: {matched_pattern}] {full_path}:{idx} → {linea_display}...{Style.RESET_ALL}")
                                 else:
                                     print(f"{Fore.MAGENTA}[SEARCH: {matched_pattern}] {full_path}:{idx} → {linea[:80]}...{Style.RESET_ALL}")
-                            
                             if codigo in ALL_CODES:
                                 self._procesar_codigo(codigo, full_path, idx, linea)
-                            
                             # Capture IP
                             ip = self.parser.extract_ip(linea)
                             if ip:
                                 self.ips_frecuentes[ip] += 1
-                            
                             # Capture paths
                             ruta = self.parser.extract_path(linea)
                             if ruta:
                                 self.archivos_con_muchos_eventos[ruta] += 1
-                
                 except Exception as e:
                     print(f"{Fore.RED}[ERROR] Error reading {full_path}: {e}{Style.RESET_ALL}")
         
